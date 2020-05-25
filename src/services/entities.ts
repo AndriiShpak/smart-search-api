@@ -25,9 +25,9 @@ export default class EntitiesService {
     }
   }
 
-  public async batchCreate(entityInputDTO: IEntityDTO[]): Promise<boolean> {
+  public async batchUpdate(entityInputDTO: IEntityDTO[]): Promise<boolean> {
     try {
-      const entitiesForCreate = entityInputDTO.map(entity => ({
+      const entitiesForUpdate = entityInputDTO.map(entity => ({
         clientId: 1,
         groupReference: entity.groupReference,
         name: entity.name,
@@ -40,10 +40,16 @@ export default class EntitiesService {
         isOnlySynonyms: false,
       }));
 
-      const entityRecords = await this.entityModel.create(entitiesForCreate);
+      const dialogflowResult = await this.dialogflowEntitiesService.batchUpdate(entitiesForUpdate as IEntity[]);
+
+      if (!dialogflowResult) {
+        throw new Error('Entities cannot be created in dialogflow');
+      }
+
+      const entityRecords = await this.entityModel.create(dialogflowResult);
 
       if (!entityRecords) {
-        throw new Error('Entity cannot be created');
+        throw new Error('Entities cannot be created in db');
       }
 
       return true;
@@ -55,13 +61,17 @@ export default class EntitiesService {
 
   public async update(entity: IEntity): Promise<IEntity> {
     try {
+      const dialogflowResult = await this.dialogflowEntitiesService.update(entity);
+
+      if (!dialogflowResult) {
+        throw new Error('Entities cannot be updated in dialogflow');
+      }
+
       const updatedEntity = await this.entityModel.findOneAndUpdate({ _id: entity._id }, entity, { new: true });
 
       if (!updatedEntity) {
-        throw new Error('Entity cannot be updated');
+        throw new Error('Entity cannot be updated in db');
       }
-
-      await this.dialogflowEntitiesService.update(entity);
 
       return updatedEntity;
     } catch (e) {

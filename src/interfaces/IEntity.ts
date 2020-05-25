@@ -3,6 +3,7 @@ import { IName } from './shared/IName';
 export interface IEntity {
   _id: string;
   clientId: number;
+  dialogflowId: string;
   groupReference: string;
   name: IName;
   entities: Array<{

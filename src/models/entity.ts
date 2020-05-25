@@ -6,6 +6,8 @@ const Entity = new mongoose.Schema(
   {
     name: nameSchema,
 
+    dialogflowId: String,
+
     clientId: Number,
 
     groupReference: String,
