@@ -34,10 +34,12 @@ export default class DialogflowEntitiesService {
 
       const result = await entityTypesClient.listEntityTypes(baseRequest);
 
-      return entities.map((value, index) => ({
-        ...value,
-        dialogflowId: result[0][index].name,
-      }));
+      request.entityTypeBatchInline.entityTypes.forEach((entity, index) => {
+        const resultEntity = result[0].find(resultEntity => resultEntity.displayName === entity.displayName);
+        entities[index].dialogflowId = resultEntity.name;
+      });
+
+      return entities;
     } catch (e) {
       this.logger.error(e);
       throw e;

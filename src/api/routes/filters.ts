@@ -22,7 +22,7 @@ export default (app: Router) => {
 
   route.put('/entities', async (req: Request, res: Response, next: NextFunction) => {
     const logger = Container.get<Models.MyLogger>('logger');
-    logger.debug('Calling entities list endpoint with body: %o', req.body);
+    logger.debug('Calling intents update endpoint with body: %o', req.body);
     try {
       const entitiesServiceInstance = Container.get(EntitiesService);
       const entity = await entitiesServiceInstance.update(req.body);

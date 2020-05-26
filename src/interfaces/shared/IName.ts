@@ -1,3 +1,3 @@
-export interface IName {
-  [language: string]: string;
+export interface IName<T = string> {
+  [language: string]: T;
 }
