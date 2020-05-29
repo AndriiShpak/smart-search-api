@@ -16,27 +16,26 @@ export default class DialogflowIntentsService {
       });
       const projectId = config.dialogflow.projectId;
       const projectAgentPath = intentsClient.agentPath(projectId);
+      // end
 
-      const baseRequest = {
-        parent: projectAgentPath,
-        languageCode: 'en',
-      };
-
-      // TODO: do call for each language
       const request = {
-        ...baseRequest,
+        parent: projectAgentPath,
+        languageCode: config.supportedLanguages[0],
         intentBatchInline: {
-          intents: intents.map(entity => this.generateIntentPayload(entity)),
+          intents: intents.map(entity => this.generateIntentPayloadWithoutParameters(entity)),
         },
       };
 
-      await intentsClient.batchUpdateIntents(request);
+      const resultWithPromise = await intentsClient.batchUpdateIntents(request);
 
-      const result = await intentsClient.listIntents(baseRequest);
+      const result = (await resultWithPromise[0].promise())[0];
 
-      request.intentBatchInline.intents.forEach((intent, index) => {
-        const resultIntent = result[0].find(resultIntent => resultIntent.displayName === intent.displayName);
-        intents[index].dialogflowId = resultIntent.name;
+      intents.forEach(intent => {
+        const intentFromResponse = result.intents.find(
+          resultEntity => resultEntity.displayName === this.generateIntentName(intent),
+        );
+
+        intent.dialogflowId = intentFromResponse.name;
       });
 
       return intents;
@@ -48,22 +47,28 @@ export default class DialogflowIntentsService {
 
   public async update(intent: IIntent): Promise<IIntent> {
     try {
-      const entityTypesClient = new IntentsClient({
+      const intentsClient = new IntentsClient({
         keyFilename: config.dialogflow.keyPath,
       });
       const projectId = config.dialogflow.projectId;
-      const projectAgentPath = entityTypesClient.agentPath(projectId);
+      const projectAgentPath = intentsClient.agentPath(projectId);
 
-      const request = {
-        parent: projectAgentPath,
-        languageCode: 'en',
-        intent: {
-          ...this.generateIntentPayload(intent),
-          name: intent.dialogflowId,
-        },
-      };
+      const waitRequests = [];
 
-      await entityTypesClient.updateIntent(request);
+      config.supportedLanguages.forEach(languageCode => {
+        const request = {
+          parent: projectAgentPath,
+          languageCode: languageCode,
+          intent: {
+            ...this.generateIntentPayload(intent, languageCode),
+            name: intent.dialogflowId,
+          },
+        };
+
+        waitRequests.push(intentsClient.updateIntent(request));
+      });
+
+      await Promise.all(waitRequests);
 
       return intent;
     } catch (e) {
@@ -72,8 +77,8 @@ export default class DialogflowIntentsService {
     }
   }
 
-  private generateIntentPayload(intent: IIntent): any {
-    const trainingPhrases = (intent.trainingPhrases.en || []).map(trainingPhrase => ({
+  private generateIntentPayload(intent: IIntent, languageCode: string): any {
+    const trainingPhrases = (intent.trainingPhrases[languageCode] || []).map(trainingPhrase => ({
       type: 'EXAMPLE' as 'EXAMPLE',
       parts: trainingPhrase.parts.map(trainingPhrasePart => ({
         text: trainingPhrasePart.text,
@@ -100,9 +105,21 @@ export default class DialogflowIntentsService {
     }));
 
     return {
-      displayName: intent.name.system,
+      ...this.generateIntentPayloadWithoutParameters(intent),
       trainingPhrases,
       parameters,
     };
+  }
+
+  private generateIntentPayloadWithoutParameters(intent: IIntent): any {
+    return {
+      displayName: this.generateIntentName(intent),
+      trainingPhrases: [],
+      parameters: [],
+    };
+  }
+
+  private generateIntentName(intent: IIntent): string {
+    return intent.name.system;
   }
 }

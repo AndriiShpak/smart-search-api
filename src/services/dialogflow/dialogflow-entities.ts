@@ -16,28 +16,29 @@ export default class DialogflowEntitiesService {
       });
       const projectId = config.dialogflow.projectId;
       const projectAgentPath = entityTypesClient.agentPath(projectId);
+      // end
 
-      const baseRequest = {
-        parent: projectAgentPath,
-        languageCode: 'en',
-      };
-
-      // TODO: do call for each language
       const request = {
-        ...baseRequest,
+        parent: projectAgentPath,
+        languageCode: config.supportedLanguages[0],
         entityTypeBatchInline: {
-          entityTypes: entities.map(entity => this.generateEntityType(entity)),
+          entityTypes: entities.map(entity => this.generateEntityTypeWithoutEntities(entity)),
         },
       };
 
-      await entityTypesClient.batchUpdateEntityTypes(request);
+      let resultWithPromise = await entityTypesClient.batchUpdateEntityTypes(request);
 
-      const result = await entityTypesClient.listEntityTypes(baseRequest);
+      const result = (await resultWithPromise[0].promise())[0];
 
-      request.entityTypeBatchInline.entityTypes.forEach((entity, index) => {
-        const resultEntity = result[0].find(resultEntity => resultEntity.displayName === entity.displayName);
-        entities[index].dialogflowId = resultEntity.name;
+      entities.forEach(entity => {
+        const entityTypeFromResponse = result.entityTypes.find(
+          resultEntity => resultEntity.displayName === this.generateEntityName(entity),
+        );
+
+        entity.dialogflowId = entityTypeFromResponse.name;
       });
+
+      await Promise.all(entities.map(entity => this.update(entity)));
 
       return entities;
     } catch (e) {
@@ -54,19 +55,25 @@ export default class DialogflowEntitiesService {
       const projectId = config.dialogflow.projectId;
       const projectAgentPath = entityTypesClient.agentPath(projectId);
 
-      const request = {
-        parent: projectAgentPath,
-        languageCode: 'en',
-        updateMask: {
-          paths: ['entities'],
-        },
-        entityType: {
-          ...this.generateEntityType(entity),
-          name: entity.dialogflowId,
-        },
-      };
+      const waitRequests = [];
 
-      await entityTypesClient.updateEntityType(request);
+      config.supportedLanguages.forEach(languageCode => {
+        const request = {
+          parent: projectAgentPath,
+          languageCode: languageCode,
+          updateMask: {
+            paths: ['entities'],
+          },
+          entityType: {
+            ...this.generateEntityType(entity, languageCode),
+            name: entity.dialogflowId,
+          },
+        };
+
+        waitRequests.push(entityTypesClient.updateEntityType(request));
+      });
+
+      await Promise.all(waitRequests);
 
       return entity;
     } catch (e) {
@@ -75,15 +82,26 @@ export default class DialogflowEntitiesService {
     }
   }
 
-  private generateEntityType(entity: IEntity): any {
+  private generateEntityType(entity: IEntity, language: string): any {
     return {
-      displayName: `${entity.groupReference}_${entity.name.system}`,
-      kind: 'KIND_MAP' as 'KIND_MAP',
-      enableFuzzyExtraction: true,
+      ...this.generateEntityTypeWithoutEntities(entity),
       entities: entity.entities.map(subEntity => ({
-        value: subEntity.name.en,
-        synonyms: subEntity.synonyms.map(synonym => synonym.en),
+        value: subEntity.name[language],
+        synonyms: subEntity.synonyms[language],
       })),
     };
+  }
+
+  private generateEntityTypeWithoutEntities(entity: IEntity) {
+    return {
+      displayName: this.generateEntityName(entity),
+      kind: 'KIND_MAP' as 'KIND_MAP',
+      enableFuzzyExtraction: true,
+      entities: [],
+    };
+  }
+
+  private generateEntityName(entity: IEntity): string {
+    return `${entity.groupReference}_${entity.name.system}`;
   }
 }

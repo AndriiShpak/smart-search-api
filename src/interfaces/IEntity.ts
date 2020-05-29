@@ -8,7 +8,7 @@ export interface IEntity {
   name: IName;
   entities: Array<{
     name: IName;
-    synonyms: IName[];
+    synonyms: IName<string[]>;
   }>;
   isReadyForSearch: boolean;
   isRequired: boolean;

@@ -1,6 +1,7 @@
 import { Service, Inject } from 'typedi';
 import DialogflowIntentsService from './dialogflow/dialogflow-intents';
 import { IIntent, IIntentDTO } from '../interfaces/IIntent';
+import config from '../config';
 
 @Service()
 export default class IntentsService {
@@ -30,7 +31,10 @@ export default class IntentsService {
       const intentsForUpdate = intentInputDTO.map(intent => ({
         clientId: 1,
         name: intent.name,
-        trainingPhrases: {},
+        trainingPhrases: config.supportedLanguages.reduce((acc, language) => {
+          acc[language] = [];
+          return acc;
+        }, {}),
       }));
 
       const dialogflowResult = await this.dialogflowIntentsService.batchUpdate(intentsForUpdate as IIntent[]);

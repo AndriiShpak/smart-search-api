@@ -1,6 +1,7 @@
 import { Service, Inject } from 'typedi';
 import { IEntityDTO, IEntity } from '../interfaces/IEntity';
 import DialogflowEntitiesService from './dialogflow/dialogflow-entities';
+import config from '../config';
 
 @Service()
 export default class EntitiesService {
@@ -28,12 +29,16 @@ export default class EntitiesService {
   public async batchUpdate(entityInputDTO: IEntityDTO[]): Promise<boolean> {
     try {
       const entitiesForUpdate = entityInputDTO.map(entity => ({
+        dialogflowId: '',
         clientId: 1,
         groupReference: entity.groupReference,
         name: entity.name,
         entities: entity.entities.map(childEntity => ({
           name: childEntity,
-          synonyms: [],
+          synonyms: config.supportedLanguages.reduce((acc, language) => {
+            acc[language] = [];
+            return acc;
+          }, {}),
         })),
         isReadyForSearch: false,
         isRequired: false,

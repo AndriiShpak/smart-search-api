@@ -63,6 +63,8 @@ export default {
     projectId: process.env.DIALOGFLOW_PROJECT_ID,
     keyPath: process.env.DIALOGFLOW_KEY_PATH,
   },
+
+  supportedLanguages: ['en', 'uk'],
   /**
    * Mailgun email credentials
    */

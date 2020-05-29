@@ -15,7 +15,10 @@ const Entity = new mongoose.Schema(
     entities: [
       {
         name: nameSchema,
-        synonyms: [nameSchema],
+        synonyms: {
+          type: Map,
+          of: [String],
+        },
       },
     ],
 
