@@ -1,12 +1,12 @@
 import { Service, Inject } from 'typedi';
 import { IIntent } from '../../interfaces/IIntent';
 import config from '../../config';
-
 import { IntentsClient } from '@google-cloud/dialogflow';
+import DialogflowAgentService from './dialogflow-agent';
 
 @Service()
 export default class DialogflowIntentsService {
-  constructor(@Inject('logger') private logger) {}
+  constructor(@Inject('logger') private logger, private dialogflowAgentService: DialogflowAgentService) {}
 
   public async batchUpdate(intents: IIntent[]): Promise<IIntent[]> {
     try {
@@ -37,6 +37,8 @@ export default class DialogflowIntentsService {
 
         intent.dialogflowId = intentFromResponse.name;
       });
+
+      await this.dialogflowAgentService.train();
 
       return intents;
     } catch (e) {
@@ -70,6 +72,8 @@ export default class DialogflowIntentsService {
 
       await Promise.all(waitRequests);
 
+      await this.dialogflowAgentService.train();
+
       return intent;
     } catch (e) {
       this.logger.error(e);
@@ -82,9 +86,9 @@ export default class DialogflowIntentsService {
       type: 'EXAMPLE' as 'EXAMPLE',
       parts: trainingPhrase.parts.map(trainingPhrasePart => ({
         text: trainingPhrasePart.text,
-        entityType: trainingPhrasePart.entityType ? `@${intent.name.system}_${trainingPhrasePart.entityType}` : '',
+        entityType: trainingPhrasePart.entityType ? `@${intent.name.system}___${trainingPhrasePart.entityType}` : '',
         userDefined: true,
-        alias: trainingPhrasePart.entityType ? `${intent.name.system}_${trainingPhrasePart.entityType}` : '',
+        alias: trainingPhrasePart.entityType ? `${intent.name.system}___${trainingPhrasePart.entityType}` : '',
       })),
     }));
 

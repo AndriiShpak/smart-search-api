@@ -102,6 +102,6 @@ export default class DialogflowEntitiesService {
   }
 
   private generateEntityName(entity: IEntity): string {
-    return `${entity.groupReference}_${entity.name.system}`;
+    return `${entity.groupReference}___${entity.name.system}`;
   }
 }
